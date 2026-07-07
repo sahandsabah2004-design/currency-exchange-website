@@ -1,70 +1,98 @@
-<?php include 'db.php'; ?>
-<!-- هێنان و بەشدارکردنی پەڕەی داتابەیس بۆ بەکارهێنان لەم لاپەڕەیەدا -->
+<?php 
+// ١. دەستپێکردنی سێشن
+session_start(); 
+
+include 'db.php'; 
+
+// ٢. پاراستنی لاپەڕەکە (بۆ کاتی چاوپێکەوتن بە کاتی کۆمێنت کراوە بۆ ئەوەی ڕاستەوخۆ بکرێتەوە)
+/*
+if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
+    die("<h2 style='text-align:center; margin-top:50px; color:red;'>تۆ مۆڵەتی بینینی ئەم لاپەڕەیەت نییە. تکایە سەرەتا داخڵ ببە.</h2>");
+}
+*/
+
+// ٣. هێنانی نرخی ئێستای ناو داتابەیس بۆ ئەوەی نیشانی ئەدمینی بدەین
+$current_rate = "—";
+$res = $conn->query("SELECT value FROM settings WHERE name='usd_iqd'");
+if ($res && $row = $res->fetch_assoc()) {
+    $current_rate = number_format($row['value']);
+}
+?>
 
 <!DOCTYPE html>
-<html>
+<html lang="ku" dir="rtl">
 <head>
-<title>Admin Panel</title>
-<!-- دیاریکردنی ناونیشانی سەرەکی لاپەڕەکە لە تاب-ی براوسەرەکەدا -->
-
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel - ستافی بەڕێوەبردن</title>
 
 <style>
-/* دەستپێکردنی ستایلی ناوخۆیی (CSS) */
-body { font-family: Arial; text-align:center; margin-top:50px; }
-/* ڕێکخستنی جۆری فۆنت، هێنانی دەقەکان بۆ ناوەڕاست، و جێهێشتنی مەودا لە سەرەوەی لاپەڕەکە */
-
-input, button { padding:10px; margin:5px; }
-/* دیاریکردنی قەبارە (Padding) و دووری (Margin) بۆ خانەکانی نووسین و دوگمەکان */
-
-.card { border:1px solid #ccc; padding:20px; display:inline-block; }
-/* دروستکردنی چوارچێوەیەکی خۆڵەمێشی و ڕێکخستنی بۆشایی ناوەوە بۆ کارتە سەرەکییەکە */
+body { font-family: Arial, sans-serif; text-align:center; margin-top:50px; background-color: #f5f5f5; color: #1a1a2e; }
+input, button { padding:10px; margin:5px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; }
+button { background-color: #185FA5; color: white; cursor: pointer; font-weight: bold; border: none; }
+button:hover { background-color: #134d87; }
+.card { border:1px solid #ccc; padding:35px; display:inline-block; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; width: 100%; }
+#msg { font-weight: bold; margin-top: 15px; }
+.success { color: green; }
+.error { color: red; }
+.current-rate-box { background: #e6f2ff; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #185FA5; }
 </style>
 </head>
 <body>
 
 <div class="card">
-<!-- دروستکردنی کارتێک بۆ کۆکردنەوەی بەشەکانی پانێڵی ئەدمینەکە -->
-
 <h2>Admin Panel</h2>
-<!-- سەردێڕی سەرەکی بۆ پانێڵەکە -->
+<p style="color: #666; margin-bottom: 15px;">دیاریکردنی نرخی دۆلار بەرامبەر دینار</p>
 
-<p>Set USD → IQD Rate</p>
-<!-- دەقێکی ڕوونکەرەوە بۆ دیاریکردنی نرخی دۆلار بۆ دینار -->
+<!-- نیشاندانی نرخی ئێستای ناو داتابەیس -->
+<div class="current-rate-box">
+    نرخی ئێستا لە داتابەیس: <span id="currentRate"><?php echo $current_rate; ?></span> دینار
+</div>
 
-<input type="number" id="rate" placeholder="e.g. 1540">
-<!-- خانەیەک لە جۆری ژمارە بۆ وەرگرتنی نرخە نوێیەکە لە ئەدمینەکە -->
-
+<input type="number" id="rate" placeholder="بۆ نموونە: 1540" step="any">
 <br>
-<!-- دابەزین بۆ دێڕێکی نوێ -->
-
-<button onclick="updateRate()">Update</button>
-<!-- دوگمەیەک کە لە کاتی کلیک لێکردنیدا فەنکشنی updateRate دەخاتە کار -->
-
+<button onclick="updateRate()">نوێکردنەوەی نرخ</button>
 <p id="msg"></p>
-<!-- دەقێکی بەتاڵ بۆ پیشاندانی نامەی سەرکەوتنی پڕۆسەکە دوای گۆڕینی نرخەکە -->
 </div>
 
 <script>
-// دەستپێکردنی کۆدەکانی جاڤاسکڕێپت (JavaScript)
-
 function updateRate() {
-    // دروستکردنی فەنکشنێک بۆ ناردنی نرخە نوێیەکە بەبێ ڕیفرێشکردنی لاپەڕەکە
-    
-    let rate = document.getElementById('rate').value;
-    // وەرگرتنی ئەو بەهایەی (نرخەی) کە ئەدمینەکە لە خانەی نووسینەکەدا نووسیویەتی
+    let rateInput = document.getElementById('rate');
+    let rate = rateInput.value;
+    let msgEl = document.getElementById('msg');
+    let currentRateEl = document.getElementById('currentRate');
+
+    if(!rate || rate <= 0) {
+        msgEl.className = "error";
+        msgEl.innerText = "تکایە نرخێکی دروست بنووسە.";
+        return;
+    }
+
+    msgEl.className = "";
+    msgEl.innerText = "چاوەڕوان بە...";
 
     fetch('update_rate.php', {
-        // ناردنی داتاکە بۆ فایلی update_rate.php بە شێوازی پشتخلفیی (AJAX)
-        
-        method: 'POST', // دیاریکردنی شێوازی ناردنەکە بە POST
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'}, // ڕێکخستنی جۆری داتا نێردراوەکە
-        body: `rate=${rate}` // ناردنی نرخە نوێیەکە لە ناو جەستەی داواکارییەکەدا
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `rate=${encodeURIComponent(rate)}`
     })
-    .then(res => res.text()) // وەرگرتنی وەڵامی فایلی PHP کەکە بە شێوازی دەق (Text)
+    .then(res => res.text())
     .then(data => {
-        document.getElementById('msg').innerText = "Updated successfully";
-        // پیشاندانی نامەی سەرکەوتن لە ناو ئەو پەرەگرافەی (p) کە ئایدییەکەی msg بوو
+        if(data.includes("Success")) {
+            msgEl.className = "success";
+            msgEl.innerText = "نرخی دۆلار بە سەرکەوتوویی نوێکرایەوە.";
+            
+            // نوێکردنەوەی نرخی سەر شاشەکە بە شێوازی داینامیکی دوای سەرکەوتن
+            currentRateEl.innerText = Number(rate).toLocaleString();
+            rateInput.value = ""; 
+        } else {
+            msgEl.className = "error";
+            msgEl.innerText = data; 
+        }
+    })
+    .catch(err => {
+        msgEl.className = "error";
+        msgEl.innerText = "کێشەیەک لە پەیوەندی سێرڤەردا هەیە.";
     });
 }
 </script>
